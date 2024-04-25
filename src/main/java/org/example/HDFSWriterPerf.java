@@ -19,6 +19,7 @@
 package org.example;
 
 import java.net.URI;
+import java.util.Date;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -65,6 +66,7 @@ public class HDFSWriterPerf {
         System.out.println("fileCount: " + fileCount);
         System.out.println("region: " + region);
         System.out.println("parallel: " + parallel);
+        System.out.println("Testing time: " + new Date());
         System.out.println("================================");
 
         final FileSystem fs = FileSystem.get(URI.create(bucket), configuration);
