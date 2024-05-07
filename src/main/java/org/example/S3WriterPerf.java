@@ -25,10 +25,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.core.async.AsyncRequestBody;
+import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
+import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 
 public class S3WriterPerf {
     private static final Logger LOG = LoggerFactory.getLogger(S3WriterPerf.class);
@@ -62,7 +65,12 @@ public class S3WriterPerf {
         System.out.println("Testing time: " + new Date());
         System.out.println("================================");
 
-        S3Client s3 = S3Client.builder().region(Region.of(region)).build();
+        SdkAsyncHttpClient nettyHttpClient = NettyNioAsyncHttpClient.builder().maxConcurrency(100).build();
+        S3AsyncClient s3AsyncClient =
+                S3AsyncClient.builder()
+                        .httpClient(nettyHttpClient)
+                        .region(Region.of(region))
+                        .build();
         // create a single buffer for the file content
         byte[] data = generateData(dataSize * dataBlockPerFile);
 
@@ -78,7 +86,8 @@ public class S3WriterPerf {
                             .bucket(bucket)
                             .key(filename + finalI)
                             .build();
-                    s3.putObject(putObjectRequest, RequestBody.fromBytes(data));
+                    PutObjectResponse putObjectResponse =
+                            s3AsyncClient.putObject(putObjectRequest, AsyncRequestBody.fromBytes(data)).get();
                     long done = System.nanoTime();
                     System.out.println("File write cost " + TimeUnit.NANOSECONDS.toMillis(done - start) + " ms");
                 } catch (Exception e) {
@@ -90,7 +99,8 @@ public class S3WriterPerf {
         }
         latch.await();
         System.out.println("Completed at " + new Date());
-        s3.close();
+        s3AsyncClient.close();
+        nettyHttpClient.close();
         System.exit(0);
     }
 
