@@ -18,7 +18,9 @@
  */
 package org.example;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -76,6 +78,7 @@ public class S3WriterPerf {
 
         final String filename =  dir + "/" + "test-" + dataSize + "-" + dataBlockPerFile + "-" + fileCount + "-";
 
+        List<Long> allLatencies = new ArrayList<>();
         CountDownLatch latch = new CountDownLatch(fileCount);
         for (int i = 0; i < fileCount; i++) {
             int finalI = i;
@@ -89,7 +92,9 @@ public class S3WriterPerf {
                     PutObjectResponse putObjectResponse =
                             s3AsyncClient.putObject(putObjectRequest, AsyncRequestBody.fromBytes(data)).get();
                     long done = System.nanoTime();
-                    System.out.println("File write cost " + TimeUnit.NANOSECONDS.toMillis(done - start) + " ms");
+                    long latency = TimeUnit.NANOSECONDS.toMillis(done - start);
+                    System.out.println("File write cost " + latency + " ms");
+                    allLatencies.add(latency);
                 } catch (Exception e) {
                     e.printStackTrace();
                 } finally {
@@ -101,7 +106,35 @@ public class S3WriterPerf {
         System.out.println("Completed at " + new Date());
         s3AsyncClient.close();
         nettyHttpClient.close();
+
+        if (!allLatencies.isEmpty()) {
+            System.out.println("================================");
+            System.out.println("Latency percentiles for all requests:");
+            showPercentiles(allLatencies);
+            System.out.println("================================");
+            System.out.println("Latency percentiles for last 50% of requests:");
+            showPercentiles(allLatencies.subList(allLatencies.size() / 2, allLatencies.size()));
+            System.out.println("================================");
+        }
         System.exit(0);
+    }
+
+    private static void showPercentiles(List<Long> input) {
+        List<Long> latencies = new ArrayList<>(input);
+        latencies.sort(Long::compareTo);
+        System.out.println("50th percentile (Median): " + calculatePercentile(latencies, 50.0) + " ms");
+        System.out.println("75th percentile: " + calculatePercentile(latencies, 75.0) + " ms");
+        System.out.println("90th percentile: " + calculatePercentile(latencies, 90.0) + " ms");
+        System.out.println("95th percentile: " + calculatePercentile(latencies, 95.0) + " ms");
+        System.out.println("99th percentile: " + calculatePercentile(latencies, 99.0) + " ms");
+        System.out.println("Mean: " + (long) latencies.stream().mapToLong(Long::longValue).average().orElse(0) + " ms");
+        System.out.println("Min: " + latencies.get(0) + " ms");
+        System.out.println("Max: " + latencies.get(latencies.size() - 1) + " ms");
+    }
+
+    private static long calculatePercentile(List<Long> sortedLatencies, double percentile) {
+        int index = (int) Math.ceil(percentile / 100.0 * sortedLatencies.size());
+        return sortedLatencies.get(index - 1);
     }
 
     public static String getArgs(String[] args, String key, String defaultValue) {
