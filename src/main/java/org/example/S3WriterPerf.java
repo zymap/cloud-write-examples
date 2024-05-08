@@ -19,8 +19,11 @@
 package org.example;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -41,6 +44,14 @@ public class S3WriterPerf {
     // write perf test
     //
     public static void main(String[] args) throws Exception {
+        new S3WriterPerf().run(args);
+    }
+
+    List<AutoCloseable> closeables = Collections.synchronizedList(new ArrayList<>());
+    Map<Long, S3AsyncClient> s3AsyncClients = new ConcurrentHashMap<>();
+    Region region;
+
+    public void run(String[] args) throws Exception {
 
         // parse the args bucket, dir, data-size, data-block-per-file, file-count from the args
         // if the args is not provided, use the default value
@@ -53,6 +64,7 @@ public class S3WriterPerf {
         final String region = getArgs(args, "--region", "");
         final int parallel = Integer.parseInt(getArgs(args, "--parallel", "1"));
 
+        this.region = Region.of(region);
         ExecutorService service = Executors.newFixedThreadPool(parallel);
 
         System.out.println("================================");
@@ -67,12 +79,6 @@ public class S3WriterPerf {
         System.out.println("Testing time: " + new Date());
         System.out.println("================================");
 
-        SdkAsyncHttpClient nettyHttpClient = NettyNioAsyncHttpClient.builder().maxConcurrency(100).build();
-        S3AsyncClient s3AsyncClient =
-                S3AsyncClient.builder()
-                        .httpClient(nettyHttpClient)
-                        .region(Region.of(region))
-                        .build();
         // create a single buffer for the file content
         byte[] data = generateData(dataSize * dataBlockPerFile);
 
@@ -84,6 +90,7 @@ public class S3WriterPerf {
             int finalI = i;
             service.execute(() -> {
                 try {
+                    S3AsyncClient s3AsyncClient = getS3AsyncClient();
                     long start = System.nanoTime();
                     PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                             .bucket(bucket)
@@ -104,8 +111,14 @@ public class S3WriterPerf {
         }
         latch.await();
         System.out.println("Completed at " + new Date());
-        s3AsyncClient.close();
-        nettyHttpClient.close();
+
+        closeables.forEach(c -> {
+            try {
+                c.close();
+            } catch (Exception e) {
+                // ignore
+            }
+        });
 
         if (!allLatencies.isEmpty()) {
             System.out.println("================================");
@@ -117,6 +130,22 @@ public class S3WriterPerf {
             System.out.println("================================");
         }
         System.exit(0);
+    }
+
+    private S3AsyncClient getS3AsyncClient() {
+        return s3AsyncClients.computeIfAbsent(Thread.currentThread().getId(), id -> {
+            SdkAsyncHttpClient nettyHttpClient = NettyNioAsyncHttpClient.builder()
+                    .useNonBlockingDnsResolver(true)
+                    .maxConcurrency(100).build();
+            S3AsyncClient s3AsyncClient =
+                    S3AsyncClient.builder()
+                            .httpClient(nettyHttpClient)
+                            .region(region)
+                            .build();
+            closeables.add(s3AsyncClient);
+            closeables.add(nettyHttpClient);
+            return s3AsyncClient;
+        });
     }
 
     private static void showPercentiles(List<Long> input) {
