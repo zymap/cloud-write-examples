@@ -141,6 +141,8 @@ public class S3WriterPerf {
                     S3AsyncClient.builder()
                             .httpClient(nettyHttpClient)
                             .region(region)
+                            // CreateSession authentication is enabled by default, just make it explicit here
+                            .disableS3ExpressSessionAuth(false)
                             .build();
             closeables.add(s3AsyncClient);
             closeables.add(nettyHttpClient);
