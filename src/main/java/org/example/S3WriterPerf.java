@@ -104,7 +104,7 @@ public class S3WriterPerf {
                             .checksumCRC32C(crc32cBase64)
                             .build();
                     PutObjectResponse putObjectResponse =
-                            s3AsyncClient.putObject(putObjectRequest, AsyncRequestBody.fromBytes(data)).get();
+                            s3AsyncClient.putObject(putObjectRequest, AsyncRequestBody.fromBytesUnsafe(data)).get();
                     long done = System.nanoTime();
                     long latency = TimeUnit.NANOSECONDS.toMillis(done - start);
                     System.out.println("File write cost " + latency + " ms");
