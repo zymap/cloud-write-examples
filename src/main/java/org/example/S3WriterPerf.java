@@ -19,6 +19,7 @@
 package org.example;
 
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -28,6 +29,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.zip.CRC32C;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
@@ -35,6 +37,7 @@ import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
+import software.amazon.awssdk.services.s3.model.ChecksumAlgorithm;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 
@@ -81,6 +84,8 @@ public class S3WriterPerf {
 
         // create a single buffer for the file content
         byte[] data = generateData(dataSize * dataBlockPerFile);
+        // pre-calculate the CRC32C checksum for the data so that we don't spend CPU on this later
+        String crc32cBase64 = calculateCRC32CBase64Encoded(data);
 
         final String filename =  dir + "/" + "test-" + dataSize + "-" + dataBlockPerFile + "-" + fileCount + "-";
 
@@ -95,6 +100,8 @@ public class S3WriterPerf {
                     PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                             .bucket(bucket)
                             .key(filename + finalI)
+                            .checksumAlgorithm(ChecksumAlgorithm.CRC32_C)
+                            .checksumCRC32C(crc32cBase64)
                             .build();
                     PutObjectResponse putObjectResponse =
                             s3AsyncClient.putObject(putObjectRequest, AsyncRequestBody.fromBytes(data)).get();
@@ -130,6 +137,19 @@ public class S3WriterPerf {
             System.out.println("================================");
         }
         System.exit(0);
+    }
+
+    private static String calculateCRC32CBase64Encoded(byte[] data) {
+        CRC32C crc32c = new CRC32C();
+        crc32c.update(data);
+        int crc32cValue = (int)crc32c.getValue();
+        String crc32cBase64 = Base64.getEncoder().encodeToString(new byte[] {
+            (byte) (crc32cValue >>> 24),
+            (byte) (crc32cValue >>> 16),
+            (byte) (crc32cValue >>> 8),
+            (byte) crc32cValue
+        });
+        return crc32cBase64;
     }
 
     private S3AsyncClient getS3AsyncClient() {
