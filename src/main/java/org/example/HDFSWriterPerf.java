@@ -96,6 +96,9 @@ public class HDFSWriterPerf {
             });
         }
         latch.await();
+        System.out.println("Completed at " + new Date());
+        fs.close();
+        System.exit(0);
     }
 
     public static String getArgs(String[] args, String key, String defaultValue) {
