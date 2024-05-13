@@ -15,8 +15,11 @@ public class Main {
                 System.out.println("Hello, World!");
                 try {
 
-                    TimeUnit.SECONDS.sleep(10);
+                    TimeUnit.SECONDS.sleep(3);
+                    throw new Exception("Fail now!");
                 } catch (Exception e) {
+//                    executorService.shutdownNow();
+                    System.exit(0);
                     // ignore
                 }
                 latch.countDown();
@@ -24,5 +27,6 @@ public class Main {
         }
 
         latch.await();
+        System.out.println("Done!");
     }
 }

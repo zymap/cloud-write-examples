@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+#
+# Copyright (c) 2024 StreamNative, Inc.. All Rights Reserved.
+#
+
+set -ex
+
+# get the current directory
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# get the write perf command
+WRITE_PERF_CMD="${DIR}/write-perf"
+WRITE_PERF_S3_CMD="${DIR}/write-perf-s3client"
+
+EXPRESS_BUCKET="yong-dev-test--usw2-az1--x-s3"
+STANDARD_BUCKET="yong-dev-us-west-2"
+
+DIR="s3-performance"
+
+mkdir -p ${DIR}
+
+RESULT_OUTPUT="${DIR}/result"
+touch ${RESULT_OUTPUT}
+S3CLIENT_RESULT_OUTPUT="${DIR}/result-s3client"
+touch ${S3CLIENT_RESULT_OUTPUT}
+
+# run the write perf command
+# 512kb express bucket
+${WRITE_PERF_CMD} --bucket "s3a://${EXPRESS_BUCKET}" --dir ${DIR} --file-count 10000 --data-size 1024 --data-block-per-file 512 --parallel 10 --region us-west-2 >> ${RESULT_OUTPUT}
+${WRITE_PERF_CMD} --bucket "s3a://${EXPRESS_BUCKET}" --dir ${DIR} --file-count 10000 --data-size 1024 --data-block-per-file 512 --parallel 20 --region us-west-2 >> ${RESULT_OUTPUT}
+${WRITE_PERF_CMD} --bucket "s3a://${EXPRESS_BUCKET}" --dir ${DIR} --file-count 10000 --data-size 1024 --data-block-per-file 512 --parallel 50 --region us-west-2 >> ${RESULT_OUTPUT}
+# 512kb standard bucket
+${WRITE_PERF_CMD} --bucket "s3a://${STANDARD_BUCKET}" --dir ${DIR} --file-count 10000 --data-size 1024 --data-block-per-file 512 --parallel 10 --region us-west-2 >> ${RESULT_OUTPUT}
+${WRITE_PERF_CMD} --bucket "s3a://${STANDARD_BUCKET}" --dir ${DIR} --file-count 10000 --data-size 1024 --data-block-per-file 512 --parallel 20 --region us-west-2 >> ${RESULT_OUTPUT}
+${WRITE_PERF_CMD} --bucket "s3a://${STANDARD_BUCKET}" --dir ${DIR} --file-count 10000 --data-size 1024 --data-block-per-file 512 --parallel 50 --region us-west-2 >> ${RESULT_OUTPUT}
+# 1mb express bucket
+${WRITE_PERF_CMD} --bucket "s3a://${EXPRESS_BUCKET}" --dir ${DIR} --file-count 1000 --data-size 1024 --data-block-per-file 1024 --parallel 10 --region us-west-2 >> ${RESULT_OUTPUT}
+${WRITE_PERF_CMD} --bucket "s3a://${EXPRESS_BUCKET}" --dir ${DIR} --file-count 1000 --data-size 1024 --data-block-per-file 1024 --parallel 20 --region us-west-2 >> ${RESULT_OUTPUT}
+${WRITE_PERF_CMD} --bucket "s3a://${EXPRESS_BUCKET}" --dir ${DIR} --file-count 1000 --data-size 1024 --data-block-per-file 1024 --parallel 50 --region us-west-2 >> ${RESULT_OUTPUT}
+# 1mb standard bucket
+${WRITE_PERF_CMD} --bucket "s3a://${STANDARD_BUCKET}" --dir ${DIR} --file-count 1000 --data-size 1024 --data-block-per-file 1024 --parallel 10 --region us-west-2 >> ${RESULT_OUTPUT}
+${WRITE_PERF_CMD} --bucket "s3a://${STANDARD_BUCKET}" --dir ${DIR} --file-count 1000 --data-size 1024 --data-block-per-file 1024 --parallel 20 --region us-west-2 >> ${RESULT_OUTPUT}
+${WRITE_PERF_CMD} --bucket "s3a://${STANDARD_BUCKET}" --dir ${DIR} --file-count 1000 --data-size 1024 --data-block-per-file 1024 --parallel 50 --region us-west-2 >> ${RESULT_OUTPUT}
+# 4mb express bucket
+${WRITE_PERF_CMD} --bucket "s3a://${EXPRESS_BUCKET}" --dir ${DIR} --file-count 1000 --data-size 1024 --data-block-per-file 4096 --parallel 10 --region us-west-2 >> ${RESULT_OUTPUT}
+${WRITE_PERF_CMD} --bucket "s3a://${EXPRESS_BUCKET}" --dir ${DIR} --file-count 1000 --data-size 1024 --data-block-per-file 4096 --parallel 20 --region us-west-2 >> ${RESULT_OUTPUT}
+# 4mb standard bucket
+${WRITE_PERF_CMD} --bucket "s3a://${STANDARD_BUCKET}" --dir ${DIR} --file-count 1000 --data-size 1024 --data-block-per-file 4096 --parallel 10 --region us-west-2 >> ${RESULT_OUTPUT}
+${WRITE_PERF_CMD} --bucket "s3a://${STANDARD_BUCKET}" --dir ${DIR} --file-count 1000 --data-size 1024 --data-block-per-file 4096 --parallel 20 --region us-west-2 >> ${RESULT_OUTPUT}
+
+# run the write perf s3client command
+# 512kb express bucket
+${WRITE_PERF_S3_CMD} --bucket ${EXPRESS_BUCKET} --dir ${DIR} --file-count 10000 --data-size 1024 --data-block-per-file 512 --parallel 10 --region us-west-2 >> ${S3CLIENT_RESULT_OUTPUT}
+${WRITE_PERF_S3_CMD} --bucket ${EXPRESS_BUCKET} --dir ${DIR} --file-count 10000 --data-size 1024 --data-block-per-file 512 --parallel 20 --region us-west-2 >> ${S3CLIENT_RESULT_OUTPUT}
+${WRITE_PERF_S3_CMD} --bucket ${EXPRESS_BUCKET} --dir ${DIR} --file-count 10000 --data-size 1024 --data-block-per-file 512 --parallel 50 --region us-west-2 >> ${S3CLIENT_RESULT_OUTPUT}
+# 512kb standard bucket
+${WRITE_PERF_S3_CMD} --bucket ${STANDARD_BUCKET} --dir ${DIR} --file-count 10000 --data-size 1024 --data-block-per-file 512 --parallel 10 --region us-west-2 >> ${S3CLIENT_RESULT_OUTPUT}
+${WRITE_PERF_S3_CMD} --bucket ${STANDARD_BUCKET} --dir ${DIR} --file-count 10000 --data-size 1024 --data-block-per-file 512 --parallel 20 --region us-west-2 >> ${S3CLIENT_RESULT_OUTPUT}
+${WRITE_PERF_S3_CMD} --bucket ${STANDARD_BUCKET} --dir ${DIR} --file-count 10000 --data-size 1024 --data-block-per-file 512 --parallel 50 --region us-west-2 >> ${S3CLIENT_RESULT_OUTPUT}
+# 1mb express bucket
+${WRITE_PERF_S3_CMD} --bucket ${EXPRESS_BUCKET} --dir ${DIR} --file-count 1000 --data-size 1024 --data-block-per-file 1024 --parallel 10 --region us-west-2 >> ${S3CLIENT_RESULT_OUTPUT}
+${WRITE_PERF_S3_CMD} --bucket ${EXPRESS_BUCKET} --dir ${DIR} --file-count 1000 --data-size 1024 --data-block-per-file 1024 --parallel 20 --region us-west-2 >> ${S3CLIENT_RESULT_OUTPUT}
+${WRITE_PERF_S3_CMD} --bucket ${EXPRESS_BUCKET} --dir ${DIR} --file-count 1000 --data-size 1024 --data-block-per-file 1024 --parallel 50 --region us-west-2 >> ${S3CLIENT_RESULT_OUTPUT}
+# 1mb standard bucket
+${WRITE_PERF_S3_CMD} --bucket ${STANDARD_BUCKET} --dir ${DIR} --file-count 1000 --data-size 1024 --data-block-per-file 1024 --parallel 10 --region us-west-2 >> ${S3CLIENT_RESULT_OUTPUT}
+${WRITE_PERF_S3_CMD} --bucket ${STANDARD_BUCKET} --dir ${DIR} --file-count 1000 --data-size 1024 --data-block-per-file 1024 --parallel 20 --region us-west-2 >> ${S3CLIENT_RESULT_OUTPUT}
+${WRITE_PERF_S3_CMD} --bucket ${STANDARD_BUCKET} --dir ${DIR} --file-count 1000 --data-size 1024 --data-block-per-file 1024 --parallel 50 --region us-west-2 >> ${S3CLIENT_RESULT_OUTPUT}
+# 4mb express bucket
+${WRITE_PERF_S3_CMD} --bucket ${EXPRESS_BUCKET} --dir ${DIR} --file-count 1000 --data-size 1024 --data-block-per-file 4096 --parallel 10 --region us-west-2 >> ${S3CLIENT_RESULT_OUTPUT}
+${WRITE_PERF_S3_CMD} --bucket ${EXPRESS_BUCKET} --dir ${DIR} --file-count 1000 --data-size 1024 --data-block-per-file 4096 --parallel 20 --region us-west-2 >> ${S3CLIENT_RESULT_OUTPUT}
+# 4mb standard bucket
+${WRITE_PERF_S3_CMD} --bucket ${STANDARD_BUCKET} --dir ${DIR} --file-count 1000 --data-size 1024 --data-block-per-file 4096 --parallel 10 --region us-west-2 >> ${S3CLIENT_RESULT_OUTPUT}
+${WRITE_PERF_S3_CMD} --bucket ${STANDARD_BUCKET} --dir ${DIR} --file-count 1000 --data-size 1024 --data-block-per-file 4096 --parallel 20 --region us-west-2 >> ${S3CLIENT_RESULT_OUTPUT}

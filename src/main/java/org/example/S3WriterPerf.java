@@ -24,12 +24,15 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.CRC32C;
+import org.apache.logging.log4j.core.util.UuidUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
@@ -70,10 +73,13 @@ public class S3WriterPerf {
         this.region = Region.of(region);
         ExecutorService service = Executors.newFixedThreadPool(parallel);
 
+        String randomSuffix = generateRandomString(8);
+        String finalDir = dir + randomSuffix;
+
         System.out.println("================================");
         System.out.println("Arguments:");
         System.out.println("bucket: " + bucket);
-        System.out.println("dir: " + dir);
+        System.out.println("dir: " + finalDir);
         System.out.println("dataSize: " + dataSize);
         System.out.println("dataBlockPerFile: " + dataBlockPerFile);
         System.out.println("fileCount: " + fileCount);
@@ -87,7 +93,7 @@ public class S3WriterPerf {
         // pre-calculate the CRC32C checksum for the data so that we don't spend CPU on this later
         String crc32cBase64 = calculateCRC32CBase64Encoded(data);
 
-        final String filename =  dir + "/" + "test-" + dataSize + "-" + dataBlockPerFile + "-" + fileCount + "-";
+        final String filename =  finalDir + "/" + "test-" + dataSize + "-" + dataBlockPerFile + "-" + fileCount + "-";
 
         List<Long> allLatencies = new ArrayList<>();
         CountDownLatch latch = new CountDownLatch(fileCount);
@@ -107,10 +113,9 @@ public class S3WriterPerf {
                             s3AsyncClient.putObject(putObjectRequest, AsyncRequestBody.fromBytesUnsafe(data)).get();
                     long done = System.nanoTime();
                     long latency = TimeUnit.NANOSECONDS.toMillis(done - start);
-                    System.out.println("File write cost " + latency + " ms");
                     allLatencies.add(latency);
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    System.exit(1);
                 } finally {
                     latch.countDown();
                 }
@@ -170,7 +175,7 @@ public class S3WriterPerf {
         });
     }
 
-    private static void showPercentiles(List<Long> input) {
+    public static void showPercentiles(List<Long> input) {
         List<Long> latencies = new ArrayList<>(input);
         latencies.sort(Long::compareTo);
         System.out.println("50th percentile (Median): " + calculatePercentile(latencies, 50.0) + " ms");
@@ -183,7 +188,7 @@ public class S3WriterPerf {
         System.out.println("Max: " + latencies.get(latencies.size() - 1) + " ms");
     }
 
-    private static long calculatePercentile(List<Long> sortedLatencies, double percentile) {
+    public static long calculatePercentile(List<Long> sortedLatencies, double percentile) {
         int index = (int) Math.ceil(percentile / 100.0 * sortedLatencies.size());
         return sortedLatencies.get(index - 1);
     }
@@ -203,5 +208,14 @@ public class S3WriterPerf {
             data[i] = (byte) (i % 128);
         }
         return data;
+    }
+
+    // generate a random string with length
+    public static String generateRandomString(int size) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < size; i++) {
+            sb.append((char) (ThreadLocalRandom.current().nextInt(26) + 'a'));
+        }
+        return sb.toString();
     }
 }

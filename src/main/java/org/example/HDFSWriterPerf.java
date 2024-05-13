@@ -18,11 +18,17 @@
  */
 package org.example;
 
+import static org.example.S3WriterPerf.generateRandomString;
+import static org.example.S3WriterPerf.showPercentiles;
+
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -37,6 +43,7 @@ public class HDFSWriterPerf {
     //
     public static void main(String[] args) throws Exception {
 
+//        bin/write-perf --bucket s3a://yong-dev-us-west-2 --dir test-perf-8 --file-count 100 --data-size 1024 --data-block-per-file 512 --parallel 10 --region us-west-2
         // parse the args bucket, dir, data-size, data-block-per-file, file-count from the args
         // if the args is not provided, use the default value
 
@@ -55,12 +62,15 @@ public class HDFSWriterPerf {
             configuration.set("fs.s3a.endpoint.region", region);
         }
 
+        String randomSuffix = generateRandomString(8);
+        String finalDir = dir + randomSuffix;
+
         ExecutorService service = Executors.newFixedThreadPool(parallel);
 
         System.out.println("================================");
         System.out.println("Arguments:");
         System.out.println("bucket: " + bucket);
-        System.out.println("dir: " + dir);
+        System.out.println("dir: " + finalDir);
         System.out.println("dataSize: " + dataSize);
         System.out.println("dataBlockPerFile: " + dataBlockPerFile);
         System.out.println("fileCount: " + fileCount);
@@ -72,24 +82,28 @@ public class HDFSWriterPerf {
         final FileSystem fs = FileSystem.get(URI.create(bucket), configuration);
         byte[] data = generateData(dataSize);
 
-        final String filename =  "/" + dir + "/" + "test-" + dataSize + "-" + dataBlockPerFile + "-" + fileCount + "-";
+        final String filename =  "/" + finalDir + "/" + "test-" + dataSize + "-" + dataBlockPerFile + "-" + fileCount + "-";
+
+        List<Long> allLatencies = new ArrayList<>();
 
         CountDownLatch latch = new CountDownLatch(fileCount);
         for (int i = 0; i < fileCount; i++) {
             int finalI = i;
             service.execute(() -> {
                 try {
-                    long start = System.currentTimeMillis();
+                    long start = System.nanoTime();
                     FSDataOutputStream output = fs.create(new Path(filename + finalI));
                     long createdFileTime = System.currentTimeMillis();
                     for (int j = 0; j < dataBlockPerFile; j++) {
                         output.write(data);
                     }
                     output.close();
-                    long done = System.currentTimeMillis();
-                    System.out.println("File created cost " + (createdFileTime - start) + " ms" + ", write cost " + (done - createdFileTime) + " ms");
+                    long done = System.nanoTime();
+                    long latency = TimeUnit.NANOSECONDS.toMillis(done - start);
+                    allLatencies.add(latency);
                 } catch (Exception e) {
                     e.printStackTrace();
+                    System.exit(1);
                 } finally {
                     latch.countDown();
                 }
@@ -98,6 +112,17 @@ public class HDFSWriterPerf {
         latch.await();
         System.out.println("Completed at " + new Date());
         fs.close();
+
+
+        if (!allLatencies.isEmpty()) {
+            System.out.println("================================");
+            System.out.println("Latency percentiles for all requests:");
+            showPercentiles(allLatencies);
+            System.out.println("================================");
+            System.out.println("Latency percentiles for last 50% of requests:");
+            showPercentiles(allLatencies.subList(allLatencies.size() / 2, allLatencies.size()));
+            System.out.println("================================");
+        }
         System.exit(0);
     }
 
